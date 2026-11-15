@@ -1,0 +1,29 @@
+# Entries every build must contain: zip stem, term, reading (tab-separated). validate.ts fails
+# the build when one is missing, so a parser change that drops or mangles them is caught before
+# a release. Covers plain words, multiple readings, traditional variants, the neutral tone and
+# characters outside the BMP.
+guifan-pinyin	学习	xuéxí
+guifan-pinyin	词典	cídiǎn
+guifan-pinyin	一丝不苟	yīsī bùgǒu
+guifan-pinyin	长	cháng
+guifan-pinyin	长	zhǎng
+guifan-pinyin	讀	dú
+guifan-pinyin	的	de
+guifan-pinyin	𡻈屿	zhēnyǔ
+guifan-pinyin	𦰡拔	nàbá
+guifan-zhuyin	学习	ㄒㄩㄝˊㄒㄧˊ
+guifan-zhuyin	长	ㄓㄤˇ
+guifan-zhuyin	讀	ㄉㄨˊ
+guifan-zhuyin	的	˙ㄉㄜ
+guifan-zhuyin	𡻈屿	ㄓㄣㄩˇ
+guifan-zhuyin	𦰡拔	ㄋㄚˋㄅㄚˊ
+hanyu7-pinyin	学习	xuéxí
+hanyu7-pinyin	词典	cídiǎn
+hanyu7-pinyin	一丝不苟	yīsī bùgǒu
+hanyu7-pinyin	长	cháng
+hanyu7-pinyin	长	zhǎng
+hanyu7-pinyin	讀	dú
+hanyu7-zhuyin	学习	ㄒㄩㄝˊㄒㄧˊ
+hanyu7-zhuyin	长	ㄓㄤˇ
+hanyu7-zhuyin	讀	ㄉㄨˊ
+hanyu7-zhuyin	的	˙ㄉㄜ

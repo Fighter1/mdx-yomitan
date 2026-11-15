@@ -3,19 +3,28 @@
   "module": "export.ts",
   "type": "module",
   "private": true,
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/ramda": "^0.31.1",
-    "domhandler": "^5.0.3"
+  "engines": {
+    "node": ">=22.18"
   },
-  "peerDependencies": {
-    "typescript": "^5.9.3"
+  "scripts": {
+    "build": "node export.ts",
+    "typecheck": "tsc --noEmit",
+    "validate": "node scripts/validate.ts",
+    "release-notes": "node scripts/release-notes.ts"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/ramda": "^0.32.0",
+    "ajv": "^8.20.0",
+    "domhandler": "^6.0.1",
+    "jszip": "^3.10.2",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
-    "cheerio": "^1.1.2",
-    "pinyin-to-zhuyin": "^1.0.3",
+    "cheerio": "^1.2.0",
+    "pinyin-to-zhuyin": "^1.1.0",
     "pinyin-tone-tool": "^1.0.5",
     "ramda": "^0.32.0",
-    "yomichan-dict-builder": "^2.10.0"
+    "yomichan-dict-builder": "^2.11.4"
   }
 }
