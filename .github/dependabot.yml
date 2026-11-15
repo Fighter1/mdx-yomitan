@@ -15,6 +15,12 @@ updates:
       # Follows the Node version in .nvmrc; raise the two together.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # The parsers work on cheerio's nodes, so these two have to be the majors cheerio itself
+      # depends on; raise them when cheerio does.
+      - dependency-name: "domhandler"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "domelementtype"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

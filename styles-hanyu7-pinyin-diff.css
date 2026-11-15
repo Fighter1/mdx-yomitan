@@ -1,4 +1,0 @@
-/* pinyin edition: content carries both systems, hide the other one */
-[data-sc-reading-tag="zhuyin"] {
-  display: none;
-}

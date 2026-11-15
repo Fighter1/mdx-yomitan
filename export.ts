@@ -1,4 +1,16 @@
-import { addFiles, readTermsFromFile } from "./dics/shared.ts";
+import {
+  addFiles,
+  readTermsFromFile,
+  type DictionaryPair,
+} from "./dics/shared.ts";
+import {
+  EDITIONS,
+  FAMILIES,
+  stemOf,
+  titleOf,
+  type Edition,
+  type Family,
+} from "./dics/catalog.ts";
 import { Dictionary, DictionaryIndex } from "yomichan-dict-builder";
 import { processGuifan } from "./dics/guifan/guifan.ts";
 import { processHanyu7 } from "./dics/hanyu7/hanyu7.ts";
@@ -8,9 +20,19 @@ import {
   resolveRepo,
   resolveRevision,
 } from "./utils/release.ts";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 // JSZip re-encodes string inputs to UTF-8 in 16 KiB chunks, so a surrogate pair (an astral CJK
 // character) that straddles a chunk boundary turns into two U+FFFD characters. Hand it bytes.
+// saveJsonToZip is private to the library: fail loudly if a release renames it, rather than
+// quietly going back to mangled characters.
+if (typeof (Dictionary.prototype as any).saveJsonToZip !== "function") {
+  throw new Error(
+    "yomichan-dict-builder no longer has Dictionary.saveJsonToZip; the UTF-8 fix in export.ts needs updating",
+  );
+}
 (Dictionary.prototype as any).saveJsonToZip = async function (
   fileName: string,
   data: unknown,
@@ -18,128 +40,64 @@ import {
   this.zip.file(fileName, Buffer.from(JSON.stringify(data), "utf8"));
 };
 
+const OUT_DIR = "build";
 const revision = resolveRevision();
 const releaseBase = releaseBaseUrl(resolveRepo());
 console.log(`revision ${revision}, update URLs under ${releaseBase}`);
 
-const guifanPinyinDic = new Dictionary({ fileName: "guifan-pinyin.zip" });
-const guifanZhuyinDic = new Dictionary({ fileName: "guifan-zhuyin.zip" });
-const guifanPinyinIndex = new DictionaryIndex()
-  .setTitle("现代汉语规范词典 拼音")
-  .setRevision(revision)
-  .setAuthor("shadow")
-  .setSequenced(true)
-  .setAttribution("外语教学与研究出版社 (2010)")
-  .setDescription("A monolingual dictionary of Simplified Mandarin Chinese.")
-  .setIsUpdatable(true)
-  .setIndexUrl(`${releaseBase}/index-guifan-pinyin.json`)
-  .setDownloadUrl(`${releaseBase}/guifan-pinyin.zip`);
+// styles.css of each zip is put together here; nothing generated is written into the source tree
+const tmp = mkdtempSync(join(tmpdir(), "mdx-yomitan-"));
 
-guifanPinyinIndex.index.sourceLanguage = "zh";
-guifanPinyinIndex.index.targetLanguage = "zh";
-const guifanZhuyinIndex = new DictionaryIndex()
-  .setTitle("现代汉语规范词典 注音")
-  .setRevision(revision)
-  .setAuthor("shadow")
-  .setSequenced(true)
-  .setAttribution("外语教学与研究出版社 (2010)")
-  .setDescription("A monolingual dictionary of Simplified Mandarin Chinese.")
-  .setIsUpdatable(true)
-  .setIndexUrl(`${releaseBase}/index-guifan-zhuyin.json`)
-  .setDownloadUrl(`${releaseBase}/guifan-zhuyin.zip`);
-guifanZhuyinIndex.index.sourceLanguage = "zh";
-guifanZhuyinIndex.index.targetLanguage = "zh";
-await guifanPinyinDic.setIndex(
-  guifanPinyinIndex.build(),
-  "build",
-  "index-guifan-pinyin.json",
-);
-await guifanZhuyinDic.setIndex(
-  guifanZhuyinIndex.build(),
-  "build",
-  "index-guifan-zhuyin.json",
-);
+/** The 拼音 and 注音 zips of one dictionary, with index.json and styles.css in place. */
+async function createEditions(family: Family): Promise<DictionaryPair> {
+  const create = async (edition: Edition) => {
+    const stem = stemOf(family, edition);
+    const dic = new Dictionary({ fileName: `${stem}.zip` });
+    const index = new DictionaryIndex()
+      .setTitle(titleOf(family, edition))
+      .setRevision(revision)
+      .setAuthor("shadow")
+      .setSequenced(true)
+      .setAttribution(FAMILIES[family].attribution)
+      .setDescription("A monolingual dictionary of Simplified Mandarin Chinese.")
+      .setIsUpdatable(true)
+      .setIndexUrl(`${releaseBase}/index-${stem}.json`)
+      .setDownloadUrl(`${releaseBase}/${stem}.zip`)
+      .setSourceLanguage("zh")
+      .setTargetLanguage("zh");
+    await dic.setIndex(index.build(), OUT_DIR, `index-${stem}.json`);
 
-const hanyu7PinyinDic = new Dictionary({ fileName: "hanyu7-pinyin.zip" });
-const hanyu7ZhuyinDic = new Dictionary({ fileName: "hanyu7-zhuyin.zip" });
-const hanyu7PinyinIndex = new DictionaryIndex()
-  .setTitle("现代汉语词典 拼音")
-  .setRevision(revision)
-  .setAuthor("shadow")
-  .setSequenced(true)
-  .setAttribution("外语教学与研究出版社 (2016)")
-  .setDescription("A monolingual dictionary of Simplified Mandarin Chinese.")
-  .setIsUpdatable(true)
-  .setIndexUrl(`${releaseBase}/index-hanyu7-pinyin.json`)
-  .setDownloadUrl(`${releaseBase}/hanyu7-pinyin.zip`);
-hanyu7PinyinIndex.index.sourceLanguage = "zh";
-hanyu7PinyinIndex.index.targetLanguage = "zh";
-const hanyu7ZhuyinIndex = new DictionaryIndex()
-  .setTitle("现代汉语词典 注音")
-  .setRevision(revision)
-  .setAuthor("shadow")
-  .setSequenced(true)
-  .setAttribution("外语教学与研究出版社 (2016)")
-  .setDescription("A monolingual dictionary of Simplified Mandarin Chinese.")
-  .setIsUpdatable(true)
-  .setIndexUrl(`${releaseBase}/index-hanyu7-zhuyin.json`)
-  .setDownloadUrl(`${releaseBase}/hanyu7-zhuyin.zip`);
-hanyu7ZhuyinIndex.index.sourceLanguage = "zh";
-hanyu7ZhuyinIndex.index.targetLanguage = "zh";
-await hanyu7PinyinDic.setIndex(
-  hanyu7PinyinIndex.build(),
-  "build",
-  "index-hanyu7-pinyin.json",
-);
-await hanyu7ZhuyinDic.setIndex(
-  hanyu7ZhuyinIndex.build(),
-  "build",
-  "index-hanyu7-zhuyin.json",
-);
+    // the content carries both reading systems; the edition's stylesheet hides the other one
+    const css = join(tmp, `${stem}.css`);
+    writeFileSync(
+      css,
+      mergeCssFiles([`styles-${family}.css`, `styles-${edition}-diff.css`]),
+    );
+    await dic.addFile(css, "styles.css");
+    return dic;
+  };
+  return [await create("pinyin"), await create("zhuyin")];
+}
+
+const guifan = await createEditions("guifan");
+const hanyu7 = await createEditions("hanyu7");
 
 await processGuifan(
   readTermsFromFile(
     `data/mdx-guifan-2/mdx/【现代汉语规范词典(第2版)】.mdx.txt`,
   ),
-  [guifanPinyinDic, guifanZhuyinDic],
+  guifan,
 );
-await addFiles([hanyu7PinyinDic, hanyu7ZhuyinDic], "data/mdx-7/mdd");
-await processHanyu7(readTermsFromFile(`data/mdx-7/mdx/现汉7.mdx.txt`), [
-  hanyu7PinyinDic,
-  hanyu7ZhuyinDic,
-]);
+await addFiles(hanyu7, "data/mdx-7/mdd");
+await processHanyu7(readTermsFromFile(`data/mdx-7/mdx/现汉7.mdx.txt`), hanyu7);
 
-mergeCssFiles(
-  ["styles-guifan.css", "styles-guifan-pinyin-diff.css"],
-  "styles-guifan-pinyin.css",
-);
-mergeCssFiles(
-  ["styles-guifan.css", "styles-guifan-zhuyin-diff.css"],
-  "styles-guifan-zhuyin.css",
-);
-mergeCssFiles(
-  ["styles-hanyu7.css", "styles-hanyu7-pinyin-diff.css"],
-  "styles-hanyu7-pinyin.css",
-);
-mergeCssFiles(
-  ["styles-hanyu7.css", "styles-hanyu7-zhuyin-diff.css"],
-  "styles-hanyu7-zhuyin.css",
-);
-
-await Promise.all([
-  guifanPinyinDic.addFile("./styles-guifan-pinyin.css", "styles.css"),
-  guifanZhuyinDic.addFile("./styles-guifan-zhuyin.css", "styles.css"),
-]);
-await Promise.all([
-  hanyu7PinyinDic.addFile("./styles-hanyu7-pinyin.css", "styles.css"),
-  hanyu7ZhuyinDic.addFile("./styles-hanyu7-zhuyin.css", "styles.css"),
-]);
-
-await guifanPinyinDic.export("build");
-console.log("Exported 现代汉语规范词典 拼音");
-await guifanZhuyinDic.export("build");
-console.log("Exported 现代汉语规范词典 注音");
-await hanyu7PinyinDic.export("build");
-console.log("Exported 现代汉语词典 拼音");
-await hanyu7ZhuyinDic.export("build");
-console.log("Exported 现代汉语词典 注音");
+for (const [family, dics] of [
+  ["guifan", guifan],
+  ["hanyu7", hanyu7],
+] as const) {
+  for (const [i, edition] of (Object.keys(EDITIONS) as Edition[]).entries()) {
+    await dics[i]!.export(OUT_DIR);
+    console.log(`Exported ${titleOf(family, edition)}`);
+  }
+}
+rmSync(tmp, { recursive: true, force: true });

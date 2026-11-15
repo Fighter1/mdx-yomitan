@@ -1,3 +1,5 @@
+/* Colours that have to be readable on Yomitan's light and dark themes alike are mixed from the
+   surrounding text colour (currentColor) instead of being fixed. */
 [data-sc-hanyu7="def"] {
   display: block;
 }
@@ -51,26 +53,57 @@
 [data-sc-hanyu7="div"] {
   display: block;
 }
+[data-sc-hanyu7="i"] {
+  font-style: italic;
+}
+[data-sc-hanyu7="reading-note"] {
+  margin-inline: 4px;
+}
+/* front matter (凡例, 第N版说明), as the original stylesheet lays it out */
+[data-sc-hanyu7="p"],
+[data-sc-hanyu7="h1"],
+[data-sc-hanyu7="h2"] {
+  display: block;
+}
+[data-sc-hanyu7="p"] {
+  text-indent: 2em;
+}
+[data-sc-hanyu7="p"][data-sc-indent="1"] {
+  margin-left: 1.5em;
+  text-indent: -1.5em;
+}
+[data-sc-hanyu7="h1"],
+[data-sc-hanyu7="h2"] {
+  font-weight: bold;
+  margin-block: 0.5em;
+}
+[data-sc-hanyu7="h1"] {
+  font-size: 1.2em;
+}
+[data-sc-align="right"] {
+  text-align: right;
+}
+[data-sc-align="center"] {
+  text-align: center;
+}
 [data-sc-class="title"] {
   display: inline-block;
-  color: #b1b11f;
+  color: color-mix(in srgb, #8f8300 55%, currentColor);
 }
 [data-sc-class="title"]::after {
   content: "：";
 }
 [data-sc-hanyu7="ci"] {
   display: inline-block;
-  background-color: rgb(197 241 244 / 10%);
+  color: color-mix(in srgb, currentColor 78%, transparent);
+  background-color: color-mix(in srgb, currentColor 9%, transparent);
   border-radius: 8px;
   margin-top: 4px;
   margin-bottom: 2px;
-  color: #bab99e;
-  padding-inline: 4px;
-  padding-bottom: 4px;
   padding: 6px;
 }
 a {
-  color: #b971b9;
+  color: color-mix(in srgb, #9c3f9c 60%, currentColor);
 }
 [data-sc-class="cont"] {
   display: inline;
@@ -80,7 +113,7 @@ a {
 }
 [data-sc-class="cont"] a:nth-child(even) {
   margin-right: 6px;
-  color: #9471b9;
+  color: color-mix(in srgb, #6f3fb0 60%, currentColor);
 }
 details:last-child {
   margin-bottom: 4px;
@@ -93,15 +126,20 @@ details:last-child {
   text-decoration: underline;
   text-decoration-style: dashed;
   text-underline-offset: 3px;
-  color: #b1b11f;
+  color: color-mix(in srgb, #8f8300 55%, currentColor);
   padding-right: 8px;
 }
 [data-sc-hanyu7="column"] {
   display: block;
-  background-color: rgb(197 241 244 / 10%);
+  color: color-mix(in srgb, currentColor 78%, transparent);
+  background-color: color-mix(in srgb, currentColor 9%, transparent);
   border-radius: 8px;
   margin-top: 4px;
   margin-bottom: 2px;
-  color: #bab99e;
   padding: 6px;
+}
+/* glyph pictures (characters only the dictionary's own fonts have) are dark ink on a
+   transparent ground; the light chip keeps them visible on a dark theme */
+.gloss-image-link[data-background="true"] > .gloss-image-container {
+  background-color: #d4d4d4;
 }

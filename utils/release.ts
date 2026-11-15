@@ -25,36 +25,40 @@ export function resolveRevision(): string {
 }
 
 const DEFAULT_REPO = "Fighter1/mdx-yomitan";
-const REMOTE_RES = [
-  /^https?:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/,
-  /^git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?\/?$/,
-  /^ssh:\/\/git@github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/,
-];
+// https://github.com/o/r.git, https://user@github.com/o/r, git@github.com:o/r.git,
+// ssh://git@github.com:22/o/r.git, ssh://git@ssh.github.com:443/o/r.git, git://github.com/o/r
+const GITHUB_REMOTE =
+  /^(?:(?:https?|ssh|git):\/\/)?(?:[^@/]+@)?(?:ssh\.)?github\.com(?::\d+)?[:/]([^/:]+)\/([^/]+?)(?:\.git)?\/?$/i;
 
 export function repoFromRemoteUrl(url: string): string | undefined {
-  for (const re of REMOTE_RES) {
-    const m = url.trim().match(re);
-    if (m) return `${m[1]}/${m[2]}`;
-  }
-  return undefined;
+  const m = url.trim().match(GITHUB_REMOTE);
+  return m ? `${m[1]}/${m[2]}` : undefined;
 }
 
 function originRepo(): string | undefined {
+  let url: string;
   try {
-    const url = execFileSync("git", ["remote", "get-url", "origin"], {
+    url = execFileSync("git", ["remote", "get-url", "origin"], {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
     });
-    return repoFromRemoteUrl(url);
   } catch {
-    return undefined; // not a git checkout
+    return undefined; // not a git checkout, or no remote called origin
   }
+  const repo = repoFromRemoteUrl(url);
+  if (!repo) {
+    // e.g. an SSH host alias; guessing here would point the zips at somebody else's releases
+    throw new Error(
+      `cannot tell the GitHub repository from the origin remote "${url.trim()}"; set GITHUB_REPOSITORY=owner/name`,
+    );
+  }
+  return repo;
 }
 
 /**
  * "owner/name" of the repository whose latest release Yomitan asks for updates:
  * `GITHUB_REPOSITORY` in GitHub Actions, else whatever the `origin` remote points at, so a fork's
- * zips point at the fork.
+ * zips point at the fork. Outside a git checkout it is this project's own repository.
  */
 export function resolveRepo(): string {
   return process.env.GITHUB_REPOSITORY?.trim() || originRepo() || DEFAULT_REPO;

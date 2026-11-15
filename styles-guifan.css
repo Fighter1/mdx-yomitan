@@ -1,3 +1,5 @@
+/* Colours that have to be readable on Yomitan's light and dark themes alike are mixed from the
+   surrounding text colour (currentColor) instead of being fixed. */
 [data-sc-guifan="simp"] {
   display: inline-block;
   line-height: 1;
@@ -43,11 +45,13 @@
   display: block;
 }
 [data-sc-guifan="dd"] {
+  /* a block, so that wrapped lines keep the indent below */
+  display: block;
   color: #588484;
 }
 [data-sc-guifan="dd"]:before {
   content: "▸";
-  color: #942923;
+  color: #c0463c;
   font-weight: bold;
 }
 [data-sc-guifan="x-lb"] {
@@ -58,15 +62,15 @@
   display: block;
   [data-sc-class="unbox"] {
     display: inline-block;
-    background-color: rgb(197 241 244 / 10%);
+    color: color-mix(in srgb, currentColor 78%, transparent);
+    background-color: color-mix(in srgb, currentColor 9%, transparent);
     border-radius: 8px;
     margin-top: 4px;
     margin-bottom: 2px;
-    color: #bab99e;
     padding: 6px;
   }
   [data-sc-class="x-lb"] {
-    color: #b1b11f;
+    color: color-mix(in srgb, #8f8300 55%, currentColor);
   }
   [data-sc-class="x-lb"]::after {
     content: "：";
@@ -83,19 +87,17 @@
 [data-sc-guifan="x-er"] {
   font-size: x-small;
 }
-[data-sc-guifan="x-hwp"] + [data-sc-guifan="x-pr"] {
+[data-sc-guifan="x-hwp"] + [data-sc-guifan="x-pr"],
+[data-sc-guifan="reading-note"] {
   margin-left: 4px;
 }
 a {
-  color: #b971b9;
+  color: color-mix(in srgb, #9c3f9c 60%, currentColor);
 }
 [data-sc-guifan="definitions-parent"] > *:last-child {
   margin-bottom: 2px;
 }
 
-[data-sc-guifan="x-sbl0"] {
-  display: none;
-}
 [data-sc-guifan="dt"][data-sc-class="x-sbl2t"],
 [data-sc-guifan="dd"][data-sc-class="x-sbl2t"] {
   margin-left: 4em;
@@ -122,5 +124,5 @@ a {
   margin-left: 0.4em;
 }
 [data-sc-guifan="dd"][data-sc-class="x-ext1"] {
-  margin-left: -0.6em;
+  margin-left: 0;
 }

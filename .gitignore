@@ -37,9 +37,3 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # written by the scripts (stats, release notes)
 /reports
-
-/data/mdx-guifan-2/img
-styles-guifan-pinyin.css
-styles-guifan-zhuyin.css
-styles-hanyu7-pinyin.css
-styles-hanyu7-zhuyin.css

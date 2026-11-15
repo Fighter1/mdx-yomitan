@@ -4,7 +4,10 @@
 //     index file next to the zip is the zip's own index.json, the revision has the shape Yomitan
 //     compares number by number and is the same in every zip
 //   - the golden words (data/golden_words.tsv) are there with their readings
-//   - every image a definition refers to is in the zip, no U+FFFD (mangled astral characters)
+//   - headwords and readings are clean: no markup, markers or stray spaces, pinyin readings are
+//     pinyin and zhuyin readings are zhuyin
+//   - every image a definition refers to is in the zip and every image in the zip is referred to,
+//     no U+FFFD (mangled astral characters)
 //   - the 拼音 and 注音 editions of a dictionary have the same number of entries and terms
 // Writes reports/stats.json (read by scripts/release-notes.ts) and, in GitHub Actions, a job summary.
 //
@@ -17,28 +20,28 @@ import {
   statSync,
   writeFileSync,
 } from "fs";
-import { isDeepStrictEqual } from "util";
+import { isDeepStrictEqual, parseArgs } from "util";
 import Ajv, { type ValidateFunction } from "ajv";
 import JSZip from "jszip";
+import { DICTIONARIES } from "../dics/catalog.ts";
 import { REVISION_RE, releaseBaseUrl, resolveRepo } from "../utils/release.ts";
 
 const BUILD_DIR = "build";
-const STEMS = [
-  "guifan-pinyin",
-  "guifan-zhuyin",
-  "hanyu7-pinyin",
-  "hanyu7-zhuyin",
-];
+const STEMS = Object.keys(DICTIONARIES);
 const GOLDEN_WORDS_FILE = "data/golden_words.tsv";
 const MAX_PROBLEMS_SHOWN = 40;
+const REPLACEMENT_CHARACTER = String.fromCodePoint(0xfffd);
 
-const args = process.argv.slice(2);
-const arg = (name: string) => {
-  const i = args.indexOf(`--${name}`);
-  return i < 0 ? undefined : args[i + 1];
-};
-const repo = arg("repo") ?? resolveRepo();
-const expectedRevision = arg("revision");
+// strict: an option without its value ("--revision" with nothing after it) is an error
+const { values: options } = parseArgs({
+  options: { repo: { type: "string" }, revision: { type: "string" } },
+  strict: true,
+});
+for (const [name, value] of Object.entries(options)) {
+  if (!value?.trim()) throw new Error(`--${name} needs a value`);
+}
+const repo = options.repo ?? resolveRepo();
+const expectedRevision = options.revision;
 const releaseBase = releaseBaseUrl(repo);
 
 type TermRow = [
@@ -107,10 +110,33 @@ function collectImagePaths(node: unknown, out: Set<string>) {
   }
 }
 
+// What a headword must not contain: whitespace, leftovers of markup and of the variant-form
+// notation, the stand-in for a glyph image, characters only the MDX fonts have.
+const BAD_TERM = /^-|[\s（）()<>*＊⁎⁑※△〓：]|\p{Co}/u;
+// Readings may repeat what the headword itself is written with ("AA制", "三K党"); everything
+// else is pinyin (and "，…" in proverbs and patterns) or zhuyin with its tone marks.
+const PINYIN_READING = /^[\p{Script=Latin}\p{M}'’ ，,…]*$/u;
+const ZHUYIN_READING = /^[\p{Script=Bopomofo}ˊˇˋ˙，,…]*$/u;
+
+/** What is wrong with a row's headword or reading, if anything. */
+function rowProblem(row: TermRow, zhuyin: boolean): string | undefined {
+  const [term, reading] = row;
+  if (!term || BAD_TERM.test(term)) return "is not a clean headword";
+  if (reading !== reading.trim() || reading.includes("  ")) {
+    return "has stray spaces in its reading";
+  }
+  const own = [...reading].filter((c) => !term.includes(c)).join("");
+  // ɡ (U+0261) is a Latin letter too, but not the one pinyin is written with
+  if (!(zhuyin ? ZHUYIN_READING : PINYIN_READING).test(own) || own.includes("ɡ")) {
+    return `has a reading that is not ${zhuyin ? "zhuyin" : "pinyin"}`;
+  }
+  return undefined;
+}
+
 const stats: Stats[] = [];
 const problems: string[] = [];
 
-async function checkZip(stem: string, goldenWords: string[]) {
+async function checkZip(stem: string, goldenWords: string[] | undefined) {
   const file = `${stem}.zip`;
   const fail = (message: string) => problems.push(`${file}: ${message}`);
   const zipPath = `${BUILD_DIR}/${file}`;
@@ -121,7 +147,6 @@ async function checkZip(stem: string, goldenWords: string[]) {
   const names = new Set(
     Object.keys(zip.files).filter((name) => !zip.files[name]!.dir),
   );
-  // JSZip's own string decoding has the same chunk-boundary problem as its encoding; take bytes.
   const text = async (name: string) =>
     (await zip.file(name)!.async("nodebuffer")).toString("utf-8");
 
@@ -130,6 +155,9 @@ async function checkZip(stem: string, goldenWords: string[]) {
   const index = JSON.parse(await text("index.json")) as Record<string, unknown>;
   if (!validators.index(index)) {
     fail(`index.json: ${schemaErrors(validators.index)}`);
+  }
+  if (index.title !== DICTIONARIES[stem]) {
+    fail(`title is "${index.title}", expected "${DICTIONARIES[stem]}"`);
   }
   const revision = String(index.revision ?? "");
   if (!REVISION_RE.test(revision)) {
@@ -164,6 +192,7 @@ async function checkZip(stem: string, goldenWords: string[]) {
   const present = new Set<string>();
   const sequences = new Set<number>();
   const images = new Set<string>();
+  const dirty = new Map<string, string[]>();
   for (const name of [...names].sort()) {
     const kind = /^term_bank_\d+\.json$/.test(name)
       ? "term"
@@ -172,7 +201,7 @@ async function checkZip(stem: string, goldenWords: string[]) {
         : undefined;
     if (!kind) continue;
     const raw = await text(name);
-    if (raw.includes("�")) {
+    if (raw.includes(REPLACEMENT_CHARACTER)) {
       fail(
         `${name} contains U+FFFD (a character was mangled on the way into the zip)`,
       );
@@ -188,19 +217,39 @@ async function checkZip(stem: string, goldenWords: string[]) {
         present.add(`${row[0]}\t${row[1]}`);
         sequences.add(row[6]);
         collectImagePaths(row[5], images);
+        const problem = rowProblem(row, stem.endsWith("-zhuyin"));
+        if (problem) {
+          dirty.set(problem, [
+            ...(dirty.get(problem) ?? []),
+            `${row[0]} [${row[1]}]`,
+          ]);
+        }
       }
     }
   }
   if (!terms) fail("no term entries");
-  for (const word of goldenWords) {
+  for (const [problem, rows] of dirty) {
+    fail(`${rows.length} rows ${problem}, e.g. ${rows.slice(0, 5).join(", ")}`);
+  }
+  if (!goldenWords?.length) {
+    fail(`${GOLDEN_WORDS_FILE} has no golden words for it`);
+  }
+  for (const word of goldenWords ?? []) {
     if (!present.has(word)) {
       fail(`golden word missing: ${word.replace("\t", " [")}]`);
     }
   }
+  const packed = [...names].filter((n) => n.startsWith("img/"));
   const missing = [...images].filter((image) => !names.has(image));
   if (missing.length) {
     fail(
       `${missing.length} images are referenced but not in the zip, e.g. ${missing.slice(0, 3).join(", ")}`,
+    );
+  }
+  const unused = packed.filter((image) => !images.has(image));
+  if (unused.length) {
+    fail(
+      `${unused.length} images are in the zip but no entry shows them, e.g. ${unused.slice(0, 3).join(", ")}`,
     );
   }
   if (!names.has("styles.css")) fail("no styles.css");
@@ -214,16 +263,16 @@ async function checkZip(stem: string, goldenWords: string[]) {
     revision,
     entries: sequences.size,
     terms,
-    images: [...names].filter((n) => n.startsWith("img/")).length,
+    images: packed.length,
     bytes: statSync(zipPath).size,
   });
   console.log(
-    `${file}: ${sequences.size.toLocaleString("en")} entries, ${terms.toLocaleString("en")} terms, ${images.size} images referenced, revision ${revision}`,
+    `${file}: ${sequences.size.toLocaleString("en")} entries, ${terms.toLocaleString("en")} terms, ${packed.length} images, revision ${revision}`,
   );
 }
 
 const golden = readGoldenWords();
-for (const stem of STEMS) await checkZip(stem, golden.get(stem) ?? []);
+for (const stem of STEMS) await checkZip(stem, golden.get(stem));
 
 // The 拼音 and 注音 editions of a dictionary are the same rows with different readings.
 for (const pinyin of stats.filter((s) => s.file.endsWith("-pinyin.zip"))) {
