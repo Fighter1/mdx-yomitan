@@ -15,8 +15,8 @@ import { mergeCssFiles } from "./utils/css.ts";
 
 
 const versions = {
-  guifan: "2026/02/12.1",
-  hanyu7: "2026/02/09.1",
+  guifan: "2026/11/15.1",
+  hanyu7: "2026/11/15.1",
 };
 
 const guifanPinyinDic = new Dictionary({ fileName: "guifan-pinyin.zip" });
@@ -30,10 +30,10 @@ const guifanPinyinIndex = new DictionaryIndex()
   .setDescription("A monolingual dictionary of Simplified Mandarin Chinese.")
   .setIsUpdatable(true)
   .setIndexUrl(
-    "https://github.com/username-011/mdx-yomitan/releases/latest/download/index-guifan-pinyin.json",
+    "https://github.com/Fighter1/mdx-yomitan/releases/latest/download/index-guifan-pinyin.json",
   )
   .setDownloadUrl(
-    "https://github.com/username-011/mdx-yomitan/releases/latest/download/guifan-pinyin.zip",
+    "https://github.com/Fighter1/mdx-yomitan/releases/latest/download/guifan-pinyin.zip",
   );
 
 guifanPinyinIndex.index.sourceLanguage = "zh";
@@ -47,10 +47,10 @@ const guifanZhuyinIndex = new DictionaryIndex()
   .setDescription("A monolingual dictionary of Simplified Mandarin Chinese.")
   .setIsUpdatable(true)
   .setIndexUrl(
-    "https://github.com/username-011/mdx-yomitan/releases/latest/download/index-guifan-zhuyin.json",
+    "https://github.com/Fighter1/mdx-yomitan/releases/latest/download/index-guifan-zhuyin.json",
   )
   .setDownloadUrl(
-    "https://github.com/username-011/mdx-yomitan/releases/latest/download/guifan-zhuyin.zip",
+    "https://github.com/Fighter1/mdx-yomitan/releases/latest/download/guifan-zhuyin.zip",
   );
 guifanZhuyinIndex.index.sourceLanguage = "zh";
 guifanZhuyinIndex.index.targetLanguage = "zh";
@@ -76,10 +76,10 @@ const hanyu7PinyinIndex = new DictionaryIndex()
   .setDescription("A monolingual dictionary of Simplified Mandarin Chinese.")
   .setIsUpdatable(true)
   .setIndexUrl(
-    "https://github.com/username-011/mdx-yomitan/releases/latest/download/index-hanyu7-pinyin.json",
+    "https://github.com/Fighter1/mdx-yomitan/releases/latest/download/index-hanyu7-pinyin.json",
   )
   .setDownloadUrl(
-    "https://github.com/username-011/mdx-yomitan/releases/latest/download/hanyu7-pinyin.zip",
+    "https://github.com/Fighter1/mdx-yomitan/releases/latest/download/hanyu7-pinyin.zip",
   );
 hanyu7PinyinIndex.index.sourceLanguage = "zh";
 hanyu7PinyinIndex.index.targetLanguage = "zh";
@@ -92,10 +92,10 @@ const hanyu7ZhuyinIndex = new DictionaryIndex()
   .setDescription("A monolingual dictionary of Simplified Mandarin Chinese.")
   .setIsUpdatable(true)
   .setIndexUrl(
-    "https://github.com/username-011/mdx-yomitan/releases/latest/download/index-hanyu7-zhuyin.json",
+    "https://github.com/Fighter1/mdx-yomitan/releases/latest/download/index-hanyu7-zhuyin.json",
   )
   .setDownloadUrl(
-    "https://github.com/username-011/mdx-yomitan/releases/latest/download/hanyu7-zhuyin.zip",
+    "https://github.com/Fighter1/mdx-yomitan/releases/latest/download/hanyu7-zhuyin.zip",
   );
 hanyu7ZhuyinIndex.index.sourceLanguage = "zh";
 hanyu7ZhuyinIndex.index.targetLanguage = "zh";
