@@ -272,7 +272,10 @@ export type Entry = {
   reading: string;
   definition: DetailedDefinition;
   sequence: number;
-  /** Puts the Taiwan forms the entry does not list itself into its definition. */
+  /**
+   * Makes the 繁 badge of `definition` show `forms` after the forms the entry lists itself; no
+   * badge when there are neither. Can be called again with other forms.
+   */
   showTraditional: (forms: string[]) => void;
 };
 
@@ -280,6 +283,10 @@ export type Entry = {
  * The rows of every entry of a dictionary: the headword, the forms the entry lists and the
  * traditional forms it lacks (see traditional.ts), all tied to the entry by its sequence number.
  * Returns the terms of each entry, in the order of `entries`.
+ *
+ * The entry shows the Taiwan form. The row of a spelling that is only looked up (裏面, 羣衆) has
+ * its own copy of the definition, which shows that spelling as well: whoever looks it up sees
+ * the word they searched for among the forms, and nobody else does.
  *
  * It takes all entries at once because which traditional characters an entry gets depends on
  * what the other entries of the same headword list.
@@ -303,18 +310,25 @@ export async function addEntries(
     const traditional = traditionalForms(entry.headword, listed[i], [
       ...listedByHeadword.get(entry.headword)!,
     ]);
-    if (traditional.shown.length) entry.showTraditional(traditional.shown);
-    const terms = [
-      entry.headword,
-      ...listed[i]!,
-      ...traditional.shown,
-      // one that is a headword itself (臺 is 台 in Hong Kong) is found as that already
-      ...traditional.lookupOnly.filter((form) => !listedByHeadword.has(form)),
-    ];
+    const { shown } = traditional;
+    // one that is a headword itself (臺 is 台 in Hong Kong) is found as that already
+    const lookupOnly = traditional.lookupOnly.filter(
+      (form) => !listedByHeadword.has(form),
+    );
+
+    if (shown.length) entry.showTraditional(shown);
+    const terms = [entry.headword, ...listed[i]!, ...shown];
     for (const term of terms) {
       await addRows(dics, term, entry.reading, entry.definition, entry.sequence);
     }
-    added.push(terms);
+    for (const form of lookupOnly) {
+      entry.showTraditional([...shown, form]);
+      const ownDefinition = structuredClone(entry.definition);
+      await addRows(dics, form, entry.reading, ownDefinition, entry.sequence);
+    }
+    // back to what every other row of the entry shows
+    if (lookupOnly.length) entry.showTraditional(shown);
+    added.push([...terms, ...lookupOnly]);
   }
   return added;
 }

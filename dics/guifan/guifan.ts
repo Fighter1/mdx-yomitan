@@ -268,6 +268,7 @@ export async function processGuifan(terms: ParsedTerm[], dics: DictionaryPair) {
       // the 繁 badge comes right after the headword
       const badgeAt = content.length;
       let listedForms: StructuredContentNode[] = [];
+      let hasBadge = Boolean(variants);
       if (variants) {
         const shown = await traverseAll(ctx, variants.run);
         // the parentheses themselves are not shown
@@ -354,8 +355,13 @@ export async function processGuifan(terms: ParsedTerm[], dics: DictionaryPair) {
         showTraditional: (forms) => {
           // a section without a header has no place for the badge
           if (!hasReading) return;
-          const badge = traditionalBadge(listedForms, forms, TRAD);
-          content.splice(badgeAt, variants ? 1 : 0, badge);
+          const wanted = Boolean(variants) || forms.length > 0;
+          content.splice(
+            badgeAt,
+            hasBadge ? 1 : 0,
+            ...(wanted ? [traditionalBadge(listedForms, forms, TRAD)] : []),
+          );
+          hasBadge = wanted;
         },
       });
     }

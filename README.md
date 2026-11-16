@@ -18,7 +18,7 @@ Entries can be looked up from traditional text as well. Each entry shows its hea
 - the traditional and variant forms the dictionary lists with a headword: those of single characters (说（説）, 里（裏、裡）) and the other spellings of some words (一股脑儿（一古脑儿）);
 - the form Taiwan uses, converted with [OpenCC](https://github.com/BYVoid/OpenCC) (`s2tw`), where the dictionary does not list it: every word (现代 → 現代, 头发 → 頭髮) and characters such as 说 → 說, 内 → 內, 着 → 著. Only characters are converted, not vocabulary: 软件 is 軟件, not 軟體.
 
-The spellings of Hong Kong (`s2hk`: 里面 → 裏面, 群众 → 羣眾) and of OpenCC's default conversion (`s2t`: 为 → 爲, 群众 → 羣衆) find the entries as well, without being shown in the box. A word that is defined inside the entry of a character (哈达 under 哈) is found by its traditional forms too; the box of that entry is the character's.
+The spellings of Hong Kong (`s2hk`: 里面 → 裏面, 群众 → 羣眾) and of OpenCC's default conversion (`s2t`: 为 → 爲, 群众 → 羣衆) find the entries as well. The box shows such a spelling only to whoever looks it up: a lookup of 裏面 has 裡面、裏面 in it, a lookup of 里面 or 裡面 just 裡面. A word that is defined inside the entry of a character (哈达 under 哈) is found by its traditional forms too; the box of that entry is the character's.
 
 A character with several entries keeps them apart: 後 finds the 后 of 后面, not the one of 皇后, because the dictionary lists 後 with the first only. Two limits:
 

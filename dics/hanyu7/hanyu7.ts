@@ -70,18 +70,30 @@ function headwordBadges(children: StructuredContentNode[]): StructuredContentNod
 }
 const TRAD = { hanyu7: "trad" };
 
-/** An `<hw>` as content: its badges. */
-type Headword = { content: StructuredContentNode[] };
+/** An `<hw>` as content, and the badges the source gives it. */
+type Headword = {
+  node: { content: StructuredContentNode[] };
+  simp: StructuredContentNode;
+  /** What its `trad` badge holds; undefined when the source lists no other form. */
+  listed: StructuredContentNode[] | undefined;
+};
+
+function headwordOf(node: Headword["node"]): Headword {
+  const [simp, trad] = node.content;
+  const listed =
+    typeof trad === "object" && "content" in trad ? [trad.content ?? ""].flat() : undefined;
+  return { node, simp: simp!, listed };
+}
 
 /**
- * Adds traditional forms the source does not list to the badges of an `<hw>`: to its `trad`
- * badge, or as one when it has none.
+ * Makes the `trad` badge of an `<hw>` show `forms` after the forms the source lists; without
+ * either there is no such badge.
  */
-function addToBadges(hw: Headword, forms: string[]) {
-  const [simp, trad] = hw.content;
-  const listed =
-    typeof trad === "object" && "content" in trad ? [trad.content ?? ""].flat() : [];
-  hw.content = [simp!, traditionalBadge(listed, forms, TRAD)];
+function setBadges(hw: Headword, forms: string[]) {
+  hw.node.content =
+    hw.listed || forms.length
+      ? [hw.simp, traditionalBadge(hw.listed ?? [], forms, TRAD)]
+      : [hw.simp];
 }
 
 function splitOnFirst(text: string, separator: string): [string, string] {
@@ -94,7 +106,7 @@ type Context = {
   term: string;
   onReading: (s: string) => void;
   onVariantForms: (s: string) => void;
-  onHeadword: (hw: Headword) => void;
+  onHeadword: (hw: Headword["node"]) => void;
   onGlyph: (file: string) => void;
 };
 
@@ -319,7 +331,7 @@ export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
       reading,
       definition,
       sequence: ++sequence,
-      showTraditional: (forms) => hw && addToBadges(hw, forms),
+      showTraditional: (forms) => hw && setBadges(hw, forms),
     };
     entriesOf.set(headword, [...(entriesOf.get(headword) ?? []), entry]);
     allEntries.push(entry);
@@ -341,7 +353,7 @@ export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
       term: term.headword,
       onReading: (r) => (rawReading = r),
       onVariantForms: (forms) => variantForms.push(forms),
-      onHeadword: (def) => (hw ??= def),
+      onHeadword: (node) => (hw ??= headwordOf(node)),
       onGlyph: (file) => glyphs.add(file),
     };
     const entryEls = $("entry").toArray();
