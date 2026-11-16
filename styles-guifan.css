@@ -22,11 +22,9 @@
   padding: 4px;
   font-size: 1.1em;
   vertical-align: bottom;
-}
-
-.gloss-image-link:has(+ [data-sc-guifan="trad"]) {
   margin-right: 6px;
 }
+
 .gloss-image-link[data-background="true"] > .gloss-image-container {
   background-color: #d4d4d4;
 }

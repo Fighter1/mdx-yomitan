@@ -37,7 +37,8 @@ const inlineReading = (pinyin: string, term: string) =>
 /**
  * `<hw>` holds the headword and, in parentheses, its traditional/variant forms:
  * `谁（誰）`, `丑<sup>2</sup>（<sup>①-④</sup>醜）`, `一股脑<small>儿</small>（一古脑<small>儿</small>）`.
- * The headword becomes the `simp` badge and what is inside the parentheses the `trad` badge.
+ * The headword becomes the `simp` badge and what is inside the parentheses the `trad` badge,
+ * which comes first: traditional on the left, the headword to its right.
  */
 function headwordBadges(children: StructuredContentNode[]): StructuredContentNode[] {
   const simp = (content: StructuredContentNode) =>
@@ -64,8 +65,8 @@ function headwordBadges(children: StructuredContentNode[]): StructuredContentNod
   const single = (content: StructuredContentNode[]) =>
     content.length === 1 && typeof content[0] === "string" ? content[0] : content;
   return [
-    simp(single(headword)),
     traditionalBadge(variants.filter((c) => c !== ""), [], TRAD),
+    simp(single(headword)),
   ];
 }
 const TRAD = { hanyu7: "trad" };
@@ -79,10 +80,12 @@ type Headword = {
 };
 
 function headwordOf(node: Headword["node"]): Headword {
-  const [simp, trad] = node.content;
+  // [trad, simp], or just [simp]
+  const simp = node.content.at(-1)!;
+  const trad = node.content.length > 1 ? node.content[0] : undefined;
   const listed =
     typeof trad === "object" && "content" in trad ? [trad.content ?? ""].flat() : undefined;
-  return { node, simp: simp!, listed };
+  return { node, simp, listed };
 }
 
 /**
@@ -92,7 +95,7 @@ function headwordOf(node: Headword["node"]): Headword {
 function setBadges(hw: Headword, forms: string[]) {
   hw.node.content =
     hw.listed || forms.length
-      ? [hw.simp, traditionalBadge(hw.listed ?? [], forms, TRAD)]
+      ? [traditionalBadge(hw.listed ?? [], forms, TRAD), hw.simp]
       : [hw.simp];
 }
 

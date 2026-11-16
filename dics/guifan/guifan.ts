@@ -265,8 +265,8 @@ export async function processGuifan(terms: ParsedTerm[], dics: DictionaryPair) {
         : undefined;
 
       const content = await traverseAll(ctx, head);
-      // the 繁 badge comes right after the headword
-      const badgeAt = content.length;
+      // the 繁 badge opens the header: traditional on the left, the headword to its right
+      const badgeAt = 0;
       let listedForms: StructuredContentNode[] = [];
       let hasBadge = Boolean(variants);
       if (variants) {
@@ -280,7 +280,7 @@ export async function processGuifan(terms: ParsedTerm[], dics: DictionaryPair) {
           shown[last] = shown[last].replace(/）[^）]*$/, "");
         }
         listedForms = shown.filter((c) => c !== "");
-        content.push(traditionalBadge(listedForms, [], TRAD));
+        content.splice(badgeAt, 0, traditionalBadge(listedForms, [], TRAD));
       }
       if (noteLabel) {
         content.push({
