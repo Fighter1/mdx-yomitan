@@ -1,12 +1,15 @@
 import {
-  addEntryRows,
+  addEntries,
   addRows,
   annotatePinyin,
   entryLinkTarget,
   lookupLink,
   normalizeReading,
   readingSpans,
+  traditionalBadge,
+  withTraditionalForms,
   type DictionaryPair,
+  type Entry,
   type ParsedTerm,
 } from "../shared.ts";
 import * as cheerio from "cheerio";
@@ -38,6 +41,7 @@ const GLYPH_IMAGE = "〓";
 // What a list of traditional/variant forms may consist of, once sense numbers are taken out.
 const VARIANT_LIST = /^[\p{Script=Han}〓*＊、，;；—–\-\s]+$/u;
 const READING_SEPARATORS = /-|\/\//g;
+const TRAD = { guifan: "trad" };
 
 const isText = (node: AnyNode | undefined): node is Text =>
   node?.type === ElementType.Text;
@@ -217,6 +221,8 @@ export async function processGuifan(terms: ParsedTerm[], dics: DictionaryPair) {
     { definition: DetailedDefinition; reading: string }
   >();
   const links = new Map<string, string>();
+  // every entry, in the order of the source; their rows are added once all are known
+  const entries: Entry[] = [];
   for (const term of terms) {
     const linkMatch = term.xmlString.match(/^@@@LINK=(.+)$/m);
     if (linkMatch) {
@@ -259,6 +265,9 @@ export async function processGuifan(terms: ParsedTerm[], dics: DictionaryPair) {
         : undefined;
 
       const content = await traverseAll(ctx, head);
+      // the 繁 badge comes right after the headword
+      const badgeAt = content.length;
+      let listedForms: StructuredContentNode[] = [];
       if (variants) {
         const shown = await traverseAll(ctx, variants.run);
         // the parentheses themselves are not shown
@@ -269,16 +278,8 @@ export async function processGuifan(terms: ParsedTerm[], dics: DictionaryPair) {
         if (typeof shown[last] === "string") {
           shown[last] = shown[last].replace(/）[^）]*$/, "");
         }
-        const visible = shown.filter((c) => c !== "");
-        content.push({
-          tag: "span",
-          content:
-            visible.length === 1 && typeof visible[0] === "string"
-              ? visible[0]
-              : visible,
-          data: { guifan: "trad" },
-          lang: "zh-TW",
-        });
+        listedForms = shown.filter((c) => c !== "");
+        content.push(traditionalBadge(listedForms, [], TRAD));
       }
       if (noteLabel) {
         content.push({
@@ -344,22 +345,29 @@ export async function processGuifan(terms: ParsedTerm[], dics: DictionaryPair) {
         }
       }
 
-      await addEntryRows(
-        dics,
+      entries.push({
         headword,
-        variants?.forms ?? "",
-        normalizeReading(reading, READING_SEPARATORS),
+        variantText: variants?.forms ?? "",
+        reading: normalizeReading(reading, READING_SEPARATORS),
         definition,
-        ++sequence,
-      );
+        sequence: ++sequence,
+        showTraditional: (forms) => {
+          // a section without a header has no place for the badge
+          if (!hasReading) return;
+          const badge = traditionalBadge(listedForms, forms, TRAD);
+          content.splice(badgeAt, variants ? 1 : 0, badge);
+        },
+      });
     }
     if (++i % 10000 === 0) {
       console.log(`Processed ${i} terms.`);
     }
   }
 
+  await addEntries(dics, entries);
+
   // linked (@@@LINK) headwords are separate entries that reuse the section of the character
-  // they are defined under
+  // they are defined under; their traditional forms get the same rows
   for (const [headword, target] of links) {
     const subHeadword = subHeadwords.get(headword);
     if (!subHeadword) {
@@ -367,13 +375,16 @@ export async function processGuifan(terms: ParsedTerm[], dics: DictionaryPair) {
         `${headword} redirects to ${target}, but no section defines it as a sub-headword`,
       );
     }
-    await addRows(
-      dics,
-      headword,
-      subHeadword.reading,
-      subHeadword.definition,
-      ++sequence,
-    );
+    sequence++;
+    for (const term of withTraditionalForms(headword)) {
+      await addRows(
+        dics,
+        term,
+        subHeadword.reading,
+        subHeadword.definition,
+        sequence,
+      );
+    }
   }
   console.log(`Processed ${links.size} linked terms.`);
   images.dispose();

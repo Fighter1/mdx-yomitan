@@ -4,6 +4,11 @@
 # the ones listed with "*", sense numbers or a range), the neutral tone, readings that carried a
 # note or separators in the source, sub-headwords behind an @@@LINK, letter words and characters
 # outside the BMP.
+# The traditional forms the build adds (dics/traditional.ts): words, Taiwan forms of characters,
+# sub-headwords, and the spellings of Hong Kong and of OpenCC's default conversion, which are
+# only looked up. A line whose stem starts with "!" is a row that must NOT be there: a form that
+# belongs to another entry of the character (髮 is fà, 發 fā), a word swapped for Taiwan's own
+# (软件 stays 軟件).
 guifan-pinyin	学习	xuéxí
 guifan-pinyin	词典	cídiǎn
 guifan-pinyin	一丝不苟	yīsī bùgǒu
@@ -26,6 +31,18 @@ guifan-pinyin	饹	le
 guifan-pinyin	懊𢙐	àonáo
 guifan-pinyin	𡻈屿	zhēnyǔ
 guifan-pinyin	𦰡拔	nàbá
+guifan-pinyin	現代	xiàndài
+guifan-pinyin	說	shuō
+guifan-pinyin	內	nèi
+guifan-pinyin	頭髮	tóufa
+guifan-pinyin	乾淨	gānjìng
+guifan-pinyin	哈達	hǎdá
+guifan-pinyin	軟件	ruǎnjiàn
+guifan-pinyin	羣眾	qúnzhòng
+guifan-pinyin	羣衆	qúnzhòng
+guifan-pinyin	裏面	lǐmiàn
+!guifan-pinyin	發	fà
+!guifan-pinyin	軟體	ruǎnjiàn
 guifan-zhuyin	学习	ㄒㄩㄝˊㄒㄧˊ
 guifan-zhuyin	长	ㄓㄤˇ
 guifan-zhuyin	讀	ㄉㄨˊ
@@ -36,6 +53,8 @@ guifan-zhuyin	AA制	AAㄓˋ
 guifan-zhuyin	航天服	ㄏㄤˊㄊㄧㄢㄈㄨˊ
 guifan-zhuyin	𡻈屿	ㄓㄣㄩˇ
 guifan-zhuyin	𦰡拔	ㄋㄚˋㄅㄚˊ
+guifan-zhuyin	現代	ㄒㄧㄢˋㄉㄞˋ
+guifan-zhuyin	說	ㄕㄨㄛ
 hanyu7-pinyin	学习	xuéxí
 hanyu7-pinyin	词典	cídiǎn
 hanyu7-pinyin	一丝不苟	yīsī bùgǒu
@@ -50,6 +69,20 @@ hanyu7-pinyin	醜	chǒu
 hanyu7-pinyin	兇	xiōng
 hanyu7-pinyin	二噁英	èr èyīng
 hanyu7-pinyin	𡍷	gèng
+hanyu7-pinyin	現代	xiàndài
+hanyu7-pinyin	說	shuō
+hanyu7-pinyin	內	nèi
+hanyu7-pinyin	著	zhe
+hanyu7-pinyin	頭髮	tóu fa
+hanyu7-pinyin	乾淨	gānjìng
+hanyu7-pinyin	一古腦兒	yīgǔnǎor
+hanyu7-pinyin	緪索	gēngsuǒ
+hanyu7-pinyin	軟件	ruǎnjiàn
+hanyu7-pinyin	羣眾	qúnzhòng
+hanyu7-pinyin	羣衆	qúnzhòng
+hanyu7-pinyin	裏面	lǐmiàn
+!hanyu7-pinyin	發	fà
+!hanyu7-pinyin	軟體	ruǎnjiàn
 hanyu7-zhuyin	学习	ㄒㄩㄝˊㄒㄧˊ
 hanyu7-zhuyin	长	ㄓㄤˇ
 hanyu7-zhuyin	讀	ㄉㄨˊ
@@ -59,3 +92,5 @@ hanyu7-zhuyin	卡拉OK	ㄎㄚˇㄌㄚOK
 hanyu7-zhuyin	嗯	ㄫˊ
 hanyu7-zhuyin	哼	˙ㄏㄫ
 hanyu7-zhuyin	𡍷	ㄍㄥˋ
+hanyu7-zhuyin	現代	ㄒㄧㄢˋㄉㄞˋ
+hanyu7-zhuyin	說	ㄕㄨㄛ

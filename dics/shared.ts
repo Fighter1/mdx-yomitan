@@ -6,6 +6,7 @@ import type {
   StructuredContentNode,
 } from "yomichan-dict-builder/dist/types/yomitan/termbank";
 import { p2z } from "pinyin-to-zhuyin";
+import { traditionalForms } from "./traditional.ts";
 
 export type ParsedTerm = {
   headword: string;
@@ -263,21 +264,91 @@ export async function addRows(
   ]);
 }
 
+/** One dictionary entry, parsed and waiting for its rows. */
+export type Entry = {
+  headword: string;
+  /** The traditional/variant forms the entry lists, as its source writes them ("輝、⁎煇"). */
+  variantText: string;
+  reading: string;
+  definition: DetailedDefinition;
+  sequence: number;
+  /** Puts the Taiwan forms the entry does not list itself into its definition. */
+  showTraditional: (forms: string[]) => void;
+};
+
 /**
- * The rows of one dictionary entry: the headword, then every traditional/variant form listed
- * in `variantText`, all tied to the entry by the same sequence number. Returns those terms.
+ * The rows of every entry of a dictionary: the headword, the forms the entry lists and the
+ * traditional forms it lacks (see traditional.ts), all tied to the entry by its sequence number.
+ * Returns the terms of each entry, in the order of `entries`.
+ *
+ * It takes all entries at once because which traditional characters an entry gets depends on
+ * what the other entries of the same headword list.
  */
-export async function addEntryRows(
+export async function addEntries(
   dics: DictionaryPair,
-  headword: string,
-  variantText: string,
-  reading: string,
-  definition: DetailedDefinition,
-  sequence: number,
-): Promise<string[]> {
-  const terms = [headword, ...splitVariantForms(variantText, headword)];
-  for (const term of terms) {
-    await addRows(dics, term, reading, definition, sequence);
+  entries: Entry[],
+): Promise<string[][]> {
+  const listed = entries.map((entry) =>
+    splitVariantForms(entry.variantText, entry.headword),
+  );
+  const listedByHeadword = new Map<string, Set<string>>();
+  entries.forEach(({ headword }, i) => {
+    const forms = listedByHeadword.get(headword) ?? new Set();
+    listed[i]!.forEach((form) => forms.add(form));
+    listedByHeadword.set(headword, forms);
+  });
+
+  const added: string[][] = [];
+  for (const [i, entry] of entries.entries()) {
+    const traditional = traditionalForms(entry.headword, listed[i], [
+      ...listedByHeadword.get(entry.headword)!,
+    ]);
+    if (traditional.shown.length) entry.showTraditional(traditional.shown);
+    const terms = [
+      entry.headword,
+      ...listed[i]!,
+      ...traditional.shown,
+      // one that is a headword itself (臺 is 台 in Hong Kong) is found as that already
+      ...traditional.lookupOnly.filter((form) => !listedByHeadword.has(form)),
+    ];
+    for (const term of terms) {
+      await addRows(dics, term, entry.reading, entry.definition, entry.sequence);
+    }
+    added.push(terms);
   }
-  return terms;
+  return added;
+}
+
+/**
+ * A headword that has no entry of its own (a sub-headword, a redirect) and the traditional
+ * forms of it, when it is a word: the terms that get the rows of the entry it belongs to.
+ */
+export function withTraditionalForms(headword: string): string[] {
+  if ([...headword].length < 2) return [headword];
+  const { shown, lookupOnly } = traditionalForms(headword);
+  return [headword, ...shown, ...lookupOnly];
+}
+
+/**
+ * The 繁 badge of an entry: what its source lists (`listed`, already content), followed by the
+ * traditional forms added to it.
+ */
+export function traditionalBadge(
+  listed: StructuredContentNode[],
+  added: string[],
+  data: Record<string, string>,
+): StructuredContentNode {
+  const content = [...listed];
+  if (added.length) {
+    const last = content.at(-1);
+    const text = added.join("、");
+    if (typeof last === "string") content[content.length - 1] = `${last}、${text}`;
+    else content.push(content.length ? `、${text}` : text);
+  }
+  return {
+    tag: "span",
+    content: content.length === 1 && typeof content[0] === "string" ? content[0] : content,
+    lang: "zh-TW",
+    data,
+  };
 }

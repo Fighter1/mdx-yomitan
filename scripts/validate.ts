@@ -3,7 +3,8 @@
 //   - isUpdatable + indexUrl/downloadUrl point at this repository's latest release, the sidecar
 //     index file next to the zip is the zip's own index.json, the revision has the shape Yomitan
 //     compares number by number and is the same in every zip
-//   - the golden words (data/golden_words.tsv) are there with their readings
+//   - the golden words (data/golden_words.tsv) are there with their readings, and the rows it
+//     rules out are not
 //   - headwords and readings are clean: no markup, markers or stray spaces, pinyin readings are
 //     pinyin and zhuyin readings are zhuyin
 //   - every image a definition refers to is in the zip and every image in the zip is referred to,
@@ -56,7 +57,7 @@ type TermRow = [
 ];
 
 // entries: distinct sequence numbers (one per dictionary entry); terms: rows, which also include
-// the rows filed under a variant form and under each reading
+// the rows filed under a variant or traditional form and under each reading
 export type Stats = {
   file: string;
   title: string;
@@ -83,16 +84,22 @@ const schemaErrors = (validate: ValidateFunction): string =>
     .map((e) => `${e.instancePath || "/"} ${e.message}`)
     .join("; ");
 
-/** stem → the `term\treading` pairs that must be present in that zip. */
-function readGoldenWords(): Map<string, string[]> {
-  const golden = new Map<string, string[]>();
+/** The `term\treading` pairs that must be present in a zip, and the ones that must not be. */
+type GoldenWords = { present: string[]; absent: string[] };
+
+/** stem → its golden words; a line whose stem starts with "!" names a pair that must be absent. */
+function readGoldenWords(): Map<string, GoldenWords> {
+  const golden = new Map<string, GoldenWords>();
   for (const line of readFileSync(GOLDEN_WORDS_FILE, "utf-8").split(/\r?\n/)) {
     if (!line.trim() || line.startsWith("#")) continue;
-    const [stem, term, reading] = line.split("\t");
+    const [column, term, reading] = line.split("\t");
+    const stem = column?.replace(/^!/, "");
     if (!stem || !term || reading === undefined || !STEMS.includes(stem)) {
       throw new Error(`${GOLDEN_WORDS_FILE}: cannot parse "${line}"`);
     }
-    golden.set(stem, [...(golden.get(stem) ?? []), `${term}\t${reading}`]);
+    const words = golden.get(stem) ?? { present: [], absent: [] };
+    words[column!.startsWith("!") ? "absent" : "present"].push(`${term}\t${reading}`);
+    golden.set(stem, words);
   }
   return golden;
 }
@@ -136,7 +143,7 @@ function rowProblem(row: TermRow, zhuyin: boolean): string | undefined {
 const stats: Stats[] = [];
 const problems: string[] = [];
 
-async function checkZip(stem: string, goldenWords: string[] | undefined) {
+async function checkZip(stem: string, goldenWords: GoldenWords | undefined) {
   const file = `${stem}.zip`;
   const fail = (message: string) => problems.push(`${file}: ${message}`);
   const zipPath = `${BUILD_DIR}/${file}`;
@@ -231,12 +238,17 @@ async function checkZip(stem: string, goldenWords: string[] | undefined) {
   for (const [problem, rows] of dirty) {
     fail(`${rows.length} rows ${problem}, e.g. ${rows.slice(0, 5).join(", ")}`);
   }
-  if (!goldenWords?.length) {
+  if (!goldenWords?.present.length) {
     fail(`${GOLDEN_WORDS_FILE} has no golden words for it`);
   }
-  for (const word of goldenWords ?? []) {
+  for (const word of goldenWords?.present ?? []) {
     if (!present.has(word)) {
       fail(`golden word missing: ${word.replace("\t", " [")}]`);
+    }
+  }
+  for (const word of goldenWords?.absent ?? []) {
+    if (present.has(word)) {
+      fail(`has a row it must not have: ${word.replace("\t", " [")}]`);
     }
   }
   const packed = [...names].filter((n) => n.startsWith("img/"));

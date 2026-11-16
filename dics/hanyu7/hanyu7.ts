@@ -1,11 +1,14 @@
 import {
-  addEntryRows,
+  addEntries,
   addRows,
   entryLinkTarget,
   lookupLink,
   normalizeReading,
   readingSpans,
+  traditionalBadge,
+  withTraditionalForms,
   type DictionaryPair,
+  type Entry,
   type ParsedTerm,
 } from "../shared.ts";
 import { existsSync, readFileSync } from "fs";
@@ -62,13 +65,23 @@ function headwordBadges(children: StructuredContentNode[]): StructuredContentNod
     content.length === 1 && typeof content[0] === "string" ? content[0] : content;
   return [
     simp(single(headword)),
-    {
-      tag: "span",
-      content: single(variants.filter((c) => c !== "")),
-      lang: "zh-TW",
-      data: { hanyu7: "trad" },
-    },
+    traditionalBadge(variants.filter((c) => c !== ""), [], TRAD),
   ];
+}
+const TRAD = { hanyu7: "trad" };
+
+/** An `<hw>` as content: its badges. */
+type Headword = { content: StructuredContentNode[] };
+
+/**
+ * Adds traditional forms the source does not list to the badges of an `<hw>`: to its `trad`
+ * badge, or as one when it has none.
+ */
+function addToBadges(hw: Headword, forms: string[]) {
+  const [simp, trad] = hw.content;
+  const listed =
+    typeof trad === "object" && "content" in trad ? [trad.content ?? ""].flat() : [];
+  hw.content = [simp!, traditionalBadge(listed, forms, TRAD)];
 }
 
 function splitOnFirst(text: string, separator: string): [string, string] {
@@ -81,6 +94,7 @@ type Context = {
   term: string;
   onReading: (s: string) => void;
   onVariantForms: (s: string) => void;
+  onHeadword: (hw: Headword) => void;
   onGlyph: (file: string) => void;
 };
 
@@ -219,6 +233,7 @@ function traverse(
           const hwParen = cheerioEl.text().match(/（(.+?)）/)?.at(1);
           if (hwParen) ctx.onVariantForms(hwParen);
           def.content = headwordBadges(def.content);
+          ctx.onHeadword(def);
           return def;
         }
         case "img":
@@ -268,8 +283,6 @@ function splitReadingNote(raw: string) {
     : { reading: raw };
 }
 
-type Entry = { reading: string; definition: DetailedDefinition; sequence: number };
-
 export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
   let i = 0;
   // One sequence number per <entry> (a reading of a headword), shared by the simplified and
@@ -282,11 +295,14 @@ export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
   // the glyph pictures the entries show; only these go into the zips
   const glyphs = new Set<string>();
 
-  const addEntry = async (
+  // every entry, in the order of the source; their rows are added once all are known
+  const allEntries: Entry[] = [];
+  const addEntry = (
     headword: string,
-    variantForms: string,
+    variantText: string,
     reading: string,
     content: StructuredContentNode[],
+    hw?: Headword,
   ) => {
     const definition = {
       type: "structured-content",
@@ -297,17 +313,16 @@ export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
         lang: "zh-CN",
       },
     } satisfies DetailedDefinition;
-    const entry = { reading, definition, sequence: ++sequence };
-    entriesOf.set(headword, [...(entriesOf.get(headword) ?? []), entry]);
-    const added = await addEntryRows(
-      dics,
+    const entry: Entry = {
       headword,
-      variantForms,
+      variantText,
       reading,
       definition,
-      entry.sequence,
-    );
-    for (const term of added) rows.add(`${term}\t${entry.sequence}`);
+      sequence: ++sequence,
+      showTraditional: (forms) => hw && addToBadges(hw, forms),
+    };
+    entriesOf.set(headword, [...(entriesOf.get(headword) ?? []), entry]);
+    allEntries.push(entry);
   };
 
   for (const term of terms) {
@@ -320,11 +335,13 @@ export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
     const $ = load(term.xmlString);
     let rawReading = "";
     let variantForms: string[] = [];
+    let hw: Headword | undefined;
     const ctx: Context = {
       $,
       term: term.headword,
       onReading: (r) => (rawReading = r),
       onVariantForms: (forms) => variantForms.push(forms),
+      onHeadword: (def) => (hw ??= def),
       onGlyph: (file) => glyphs.add(file),
     };
     const entryEls = $("entry").toArray();
@@ -335,11 +352,12 @@ export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
         .toArray()
         .map((el) => traverse(ctx, el, TOP_LEVEL))
         .filter((n) => n !== "");
-      await addEntry(term.headword, "", "", content);
+      addEntry(term.headword, "", "", content);
     }
     for (const entryEl of entryEls) {
       rawReading = "";
       variantForms = [];
+      hw = undefined;
       const entryContents = $(entryEl)
         .contents()
         .toArray()
@@ -358,11 +376,12 @@ export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
           data: { hanyu7: "reading-note" },
         });
       }
-      await addEntry(
+      addEntry(
         term.headword,
         variantForms.join("、"),
         normalizeReading(reading, READING_SEPARATORS),
         entryContents,
+        hw,
       );
     }
     if (++i % 10000 === 0) {
@@ -370,8 +389,14 @@ export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
     }
   }
 
+  const added = await addEntries(dics, allEntries);
+  allEntries.forEach((entry, n) => {
+    for (const term of added[n]!) rows.add(`${term}\t${entry.sequence}`);
+  });
+
   // @@@LINK keys redirect to another entry. Most are variant forms that already have their
-  // rows; the rest (other spellings such as 二噁英 → 二𫫇英) get the rows of what they point to.
+  // rows; the rest (other spellings such as 二噁英 → 二𫫇英) get the rows of what they point to,
+  // and so do their traditional forms.
   let linked = 0;
   for (const [headword, firstTarget] of links) {
     let target = firstTarget;
@@ -384,7 +409,12 @@ export async function processHanyu7(terms: ParsedTerm[], dics: DictionaryPair) {
     }
     if (entries.some((e) => rows.has(`${headword}\t${e.sequence}`))) continue;
     for (const entry of entries) {
-      await addRows(dics, headword, entry.reading, entry.definition, entry.sequence);
+      for (const term of withTraditionalForms(headword)) {
+        const row = `${term}\t${entry.sequence}`;
+        if (rows.has(row)) continue;
+        rows.add(row);
+        await addRows(dics, term, entry.reading, entry.definition, entry.sequence);
+      }
     }
     linked++;
   }
