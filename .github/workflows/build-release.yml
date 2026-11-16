@@ -113,7 +113,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view --json tagName,body > "$RUNNER_TEMP/previous.json" 2> /dev/null || echo '{}' > "$RUNNER_TEMP/previous.json"
-          node scripts/release-notes.ts --previous "$RUNNER_TEMP/previous.json"
+          # The commits since the previous release, from the API: the checkout has no history.
+          # Without the file the notes leave the commits out, which is what a failed request gets.
+          previous_tag="$(gh release view --json tagName --jq .tagName 2> /dev/null || true)"
+          if [ -n "$previous_tag" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/compare/$previous_tag...$GITHUB_SHA" \
+              --jq '[.commits[] | {sha, message: .commit.message}]' > "$RUNNER_TEMP/commits.json" ||
+              rm -f "$RUNNER_TEMP/commits.json"
+          fi
+          node scripts/release-notes.ts --previous "$RUNNER_TEMP/previous.json" --commits "$RUNNER_TEMP/commits.json"
           cat reports/release-notes.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the zips
@@ -153,4 +161,4 @@ jobs:
         run: |
           gh release create "v$REVISION" build/*.zip build/index-*.json \
             --target "$GITHUB_SHA" --title "v$REVISION" --latest \
-            --notes-file reports/release-notes.md --generate-notes
+            --notes-file reports/release-notes.md

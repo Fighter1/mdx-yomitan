@@ -60,7 +60,7 @@ If `origin` is not recognisable as a GitHub repository (an SSH host alias, for e
 
 ## Release
 
-Run the **Build and release** workflow from the Actions tab, on the default branch. It builds, validates and publishes the zips as the latest release, tagged `v<revision>`, where the revision is the UTC date plus the run number. A revision given by hand has to be greater than the latest release's, or Yomitan would not offer it as an update. With *publish* turned off the workflow only builds, and keeps the zips as a workflow artifact.
+Run the **Build and release** workflow from the Actions tab, on the default branch. It builds, validates and publishes the zips as the latest release, tagged `v<revision>`, where the revision is the UTC date plus the run number. A revision given by hand has to be greater than the latest release's, or Yomitan would not offer it as an update. With *publish* turned off the workflow only builds, and keeps the zips as a workflow artifact. The release notes compare the entry and term counts of each zip with the previous release and list the commits since it.
 
 Nothing is released on a push; pushes and pull requests only run **Build and check**, which also keeps its zips as an artifact. Dependabot opens pull requests for npm packages and GitHub Actions once a week.
 
