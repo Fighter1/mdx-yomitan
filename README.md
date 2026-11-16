@@ -9,6 +9,10 @@ Yomitan dictionaries built from two MDX dictionaries, each in a 拼音 and a 注
 
 Import a zip in Yomitan → Settings → Dictionaries → Import. The zips are self-updating: *Check for updates* on the same page offers the newest release.
 
+A copy installed from an older build, whose revision looks like `2026/02/12.1`, is not offered these updates: Yomitan cannot compare that format with the current `2026.11.15.7`. Import the new zip once by hand.
+
+The two editions of a dictionary have the same entries. They differ in the reading Yomitan shows and searches by, and in which system the readings inside the definitions are written in. Traditional and variant forms listed with a headword can be looked up as well.
+
 ## Build
 
 Needs Node 22.18 or newer, except 23.0 to 23.5 (the workflows use the version in `.nvmrc`).
@@ -20,7 +24,18 @@ npm run build
 npm run validate
 ```
 
-`npm run build` writes the four zips and their `index-*.json` files to `build/`. `npm run validate` checks them against Yomitan's schemas (`schemas/`, copied from the [Yomitan repository](https://github.com/yomidevs/yomitan/tree/master/ext/data/schemas)), checks the update URLs, that the golden words in `data/golden_words.tsv` are present with their readings, that headwords and readings are clean (pinyin editions hold pinyin, zhuyin editions zhuyin), and that the images in a zip are exactly the ones its entries show. It takes `--repo owner/name` and `--revision 2026.11.15.7` to check against something other than the defaults.
+`npm run build` writes the four zips and their `index-*.json` files to `build/`.
+
+`npm run validate` checks the zips in `build/`:
+
+- every file against Yomitan's schemas (`schemas/`, copied from the [Yomitan repository](https://github.com/yomidevs/yomitan/tree/master/ext/data/schemas));
+- the title, the update URLs and the revision, which has to be the same in all four;
+- that the golden words in `data/golden_words.tsv` are present with their readings;
+- that headwords and readings are clean: pinyin editions hold pinyin, zhuyin editions zhuyin;
+- that the images in a zip are exactly the ones its entries show;
+- that the two editions of a dictionary have the same number of entries.
+
+It takes `--repo owner/name` and `--revision 2026.11.15.7` to check against something other than the defaults, and writes `reports/stats.json`. `npm run release-notes` turns that into `reports/release-notes.md`.
 
 Two environment variables change what is stamped into each `index.json`:
 
@@ -29,9 +44,27 @@ Two environment variables change what is stamped into each `index.json`:
 | `REVISION` | UTC date + `.0`, e.g. `2026.11.15.0` | the dictionary revision; four dot-separated integers, which Yomitan compares number by number |
 | `GITHUB_REPOSITORY` | the `origin` remote; outside a git checkout, `Fighter1/mdx-yomitan` | the repository whose latest release Yomitan asks for updates (GitHub Actions sets it) |
 
+If `origin` is not recognisable as a GitHub repository (an SSH host alias, for example), the build stops and asks for `GITHUB_REPOSITORY`.
+
 ## Release
 
-Run the **Build and release** workflow from the Actions tab. It builds, validates and publishes the zips as the latest release, tagged `v<revision>`, where the revision is the UTC date plus the run number. A revision given by hand has to be greater than the latest release's, or Yomitan would not offer it as an update. Nothing is released on a push; pushes and pull requests only run **Build and check**.
+Run the **Build and release** workflow from the Actions tab, on the default branch. It builds, validates and publishes the zips as the latest release, tagged `v<revision>`, where the revision is the UTC date plus the run number. A revision given by hand has to be greater than the latest release's, or Yomitan would not offer it as an update. With *publish* turned off the workflow only builds, and keeps the zips as a workflow artifact.
+
+Nothing is released on a push; pushes and pull requests only run **Build and check**, which also keeps its zips as an artifact. Dependabot opens pull requests for npm packages and GitHub Actions once a week.
+
+## Layout
+
+| path | what it is |
+|---|---|
+| `export.ts` | the build: creates the four zips and runs the two parsers |
+| `dics/catalog.ts` | titles and attributions of the dictionaries |
+| `dics/guifan/`, `dics/hanyu7/` | one parser per source dictionary |
+| `dics/shared.ts` | what the parsers share: variant forms, readings, pinyin to zhuyin, rows |
+| `styles-guifan.css`, `styles-hanyu7.css` | the stylesheet of each dictionary |
+| `styles-pinyin-diff.css`, `styles-zhuyin-diff.css` | appended per edition: hide the other reading system |
+| `scripts/` | validation and release notes |
+| `utils/release.ts` | revision and update URLs |
+| `data/` | the MDX sources, their images, the golden words |
 
 ## Source
 
